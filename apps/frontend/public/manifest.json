@@ -1,0 +1,10 @@
+{
+  "name": "Live Translation App",
+  "short_name": "Translation",
+  "description": "Real-time multilingual speech translation",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": []
+}
