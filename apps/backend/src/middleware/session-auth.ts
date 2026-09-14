@@ -10,7 +10,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { query } from '../database';
-import { UnauthorizedError, ForbiddenError, NotFoundError } from '../utils/errors';
+import { UnauthorizedError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
 import logger from '../utils/logger';
 
 /**

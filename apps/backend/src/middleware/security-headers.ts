@@ -39,7 +39,7 @@ export const securityHeaders = helmet({
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
       frameSrc: ["'none'"],
-      upgradeInsecureRequests: isProduction ? [] : undefined,
+      ...(isProduction ? { upgradeInsecureRequests: [] } : {}),
     },
   },
 
