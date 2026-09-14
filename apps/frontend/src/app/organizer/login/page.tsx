@@ -90,7 +90,7 @@ export default function OrganizerLoginPage() {
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/organizer/register" className="text-primary-600 font-semibold hover:text-primary-700">
                 Register here
               </Link>

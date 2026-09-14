@@ -172,7 +172,7 @@ export default function CreateSessionPage() {
                 <h4 className="font-semibold text-blue-900 mb-2">What happens next?</h4>
                 <ul className="text-sm text-blue-800 space-y-1">
                   <li>• A unique 6-digit session code will be generated</li>
-                  <li>• You'll receive a QR code for students to join</li>
+                  <li>• You&apos;ll receive a QR code for students to join</li>
                   <li>• Students can select their preferred language</li>
                   <li>• You can start the session when ready</li>
                 </ul>

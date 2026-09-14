@@ -427,7 +427,7 @@ export default function StudentSessionPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex-1 min-w-0">
               <h2 className="text-lg sm:text-xl font-semibold mb-2 truncate">
-                {session.organizerName}'s Session
+                {session.organizerName}&apos;s Session
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                 <div className="flex items-center gap-2">

@@ -126,8 +126,8 @@ export default function SessionManagePage() {
       setConnectedStudents(count)
     })
 
-    // Listen for system health events
-    socket.on(SocketEvent.TRANSLATION_RESULT, () => {
+    // Listen for translation activity
+    socket.on(SocketEvent.TRANSLATION_FINAL, () => {
       setTranslationActive(true)
       // Reset after a delay to show activity
       setTimeout(() => setTranslationActive(false), 500)

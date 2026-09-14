@@ -164,9 +164,9 @@ export const MicrophoneSetup: React.FC<MicrophoneSetupProps> = ({
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-left max-w-md mx-auto mb-6">
               <p className="text-sm text-red-800 font-medium mb-2">How to enable microphone:</p>
               <ol className="text-sm text-red-700 space-y-1 list-decimal list-inside">
-                <li>Click the lock/info icon in your browser's address bar</li>
-                <li>Find "Microphone" in the permissions list</li>
-                <li>Change permission to "Allow"</li>
+                <li>Click the lock/info icon in your browser&apos;s address bar</li>
+                <li>Find &quot;Microphone&quot; in the permissions list</li>
+                <li>Change permission to &quot;Allow&quot;</li>
                 <li>Refresh this page</li>
               </ol>
             </div>
