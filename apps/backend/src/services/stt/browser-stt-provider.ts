@@ -18,6 +18,7 @@ import logger from '../../utils/logger';
 export class BrowserSTTProvider extends EventEmitter implements ISTTProvider {
   private activeSessions: Map<string, SessionSTTState> = new Map();
   private sequenceCounter: Map<string, number> = new Map();
+  private processingLocks: Map<string, boolean> = new Map();
 
   constructor() {
     super();
@@ -42,10 +43,18 @@ export class BrowserSTTProvider extends EventEmitter implements ISTTProvider {
 
     this.activeSessions.set(sessionId, state);
     this.sequenceCounter.set(sessionId, 0);
+    this.processingLocks.set(sessionId, false);
+
+    logger.info('Mock STT session started', {
+      sessionId,
+      language,
+      threshold: 4096,
+    });
 
     // Simulate connection ready
     setTimeout(() => {
       this.emit(STTEvent.RECONNECTED, { sessionId });
+      logger.info('Mock STT connection ready', { sessionId });
     }, 100);
   }
 
@@ -57,6 +66,8 @@ export class BrowserSTTProvider extends EventEmitter implements ISTTProvider {
       state.isActive = false;
       this.activeSessions.delete(sessionId);
       this.sequenceCounter.delete(sessionId);
+      this.processingLocks.delete(sessionId);
+      logger.info('Mock STT session stopped', { sessionId });
     }
   }
 
@@ -69,6 +80,14 @@ export class BrowserSTTProvider extends EventEmitter implements ISTTProvider {
     // Accumulate audio buffer
     state.buffer = Buffer.concat([state.buffer, audioData]);
     state.lastActivityTime = Date.now();
+
+    // Log audio received for debugging
+    logger.debug('Audio received', {
+      sessionId,
+      chunkSize: audioData.length,
+      totalBuffered: state.buffer.length,
+      timestamp,
+    });
 
     // Simulate STT processing
     // In real implementation, send audioData to cloud STT service
@@ -92,18 +111,40 @@ export class BrowserSTTProvider extends EventEmitter implements ISTTProvider {
    */
   private simulateSTTProcessing(sessionId: string, audioCaptureTimestamp: number): void {
     const state = this.activeSessions.get(sessionId);
-    if (!state) return;
+    if (!state || !state.isActive) return;
 
-    // Check if enough audio has been accumulated (simulate processing threshold)
-    if (state.buffer.length < 8000) {
+    // Check if already processing to prevent race conditions
+    if (this.processingLocks.get(sessionId)) {
+      logger.debug('Mock STT already processing for session, skipping', { sessionId });
+      return;
+    }
+
+    // REDUCED THRESHOLD: Check if enough audio has been accumulated
+    // Changed from 8000 to 4096 bytes for faster demo response (matches audio chunk size)
+    if (state.buffer.length < 4096) {
       // Not enough audio yet
       return;
     }
+
+    // Set processing lock
+    this.processingLocks.set(sessionId, true);
+
+    logger.info('Mock STT processing triggered', {
+      sessionId,
+      bufferSize: state.buffer.length,
+      threshold: 4096,
+    });
 
     // Simulate STT latency (50-200ms typical for cloud services)
     const simulatedLatency = 50 + Math.random() * 150;
 
     setTimeout(() => {
+      // Check if session is still active
+      if (!this.activeSessions.has(sessionId)) {
+        this.processingLocks.set(sessionId, false);
+        return;
+      }
+
       const sttReceiveTimestamp = Date.now();
       const sequenceNumber = this.getNextSequenceNumber(sessionId);
 
@@ -118,6 +159,12 @@ export class BrowserSTTProvider extends EventEmitter implements ISTTProvider {
         language: state.language,
       };
 
+      logger.debug('Emitting interim STT result', {
+        sessionId,
+        text: interimResult.text,
+        sequenceNumber,
+      });
+
       this.emit(STTEvent.INTERIM_RESULT, {
         result: interimResult,
         latency: {
@@ -130,15 +177,27 @@ export class BrowserSTTProvider extends EventEmitter implements ISTTProvider {
 
       // After a short delay, emit final result
       setTimeout(() => {
+        // Check if session is still active
+        if (!this.activeSessions.has(sessionId)) {
+          this.processingLocks.set(sessionId, false);
+          return;
+        }
+
         const finalResult: STTResult = {
           sessionId,
           text: this.generateMockTranscript(true),
           isFinal: true,
           timestamp: new Date(),
-          sequenceNumber: sequenceNumber + 1,
+          sequenceNumber: this.getNextSequenceNumber(sessionId),
           confidence: 0.92 + Math.random() * 0.05,
           language: state.language,
         };
+
+        logger.info('Emitting final STT result', {
+          sessionId,
+          text: finalResult.text,
+          sequenceNumber: finalResult.sequenceNumber,
+        });
 
         this.emit(STTEvent.FINAL_RESULT, {
           result: finalResult,
@@ -150,8 +209,14 @@ export class BrowserSTTProvider extends EventEmitter implements ISTTProvider {
           },
         });
 
-        // Clear buffer after processing
-        state.buffer = Buffer.alloc(0);
+        // Clear buffer and unlock after processing
+        const currentState = this.activeSessions.get(sessionId);
+        if (currentState) {
+          currentState.buffer = Buffer.alloc(0);
+        }
+        this.processingLocks.set(sessionId, false);
+
+        logger.debug('Mock STT processing complete, lock released', { sessionId });
       }, 200);
     }, simulatedLatency);
   }

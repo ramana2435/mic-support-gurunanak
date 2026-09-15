@@ -156,17 +156,12 @@ export default function SessionManagePage() {
 
   const handleMicrophoneStreamReady = useCallback((stream: MediaStream) => {
     setMicrophoneStream(stream)
-    console.log('Microphone stream ready:', stream.id)
-    
-    // Auto-start STT when microphone starts and session is active
-    if (session?.status === SessionStatus.ACTIVE) {
-      handleStartSTT()
-    }
-  }, [session?.status])
+    console.log('[Organizer] Microphone stream ready:', stream.id)
+  }, [])
 
   const handleMicrophoneStreamStopped = useCallback(() => {
     setMicrophoneStream(null)
-    console.log('Microphone stream stopped')
+    console.log('[Organizer] Microphone stream stopped')
     
     // Stop STT when microphone stops
     if (sttActive) {
@@ -176,12 +171,21 @@ export default function SessionManagePage() {
 
   const handleStartSTT = useCallback(() => {
     if (!session || !microphoneStream) {
+      console.error('[Organizer] Cannot start STT:', { 
+        hasSession: !!session, 
+        hasMicrophone: !!microphoneStream 
+      })
       toast.error('Please start microphone capture first')
       return
     }
 
     const socket = getSocket()
     if (socket) {
+      console.log('[Organizer] Starting STT:', {
+        sessionId: session.id,
+        language: session.sourceLanguage,
+        sessionStatus: session.status
+      })
       socket.emit(SocketEvent.STT_START, {
         sessionId: session.id,
         language: session.sourceLanguage,
@@ -190,6 +194,14 @@ export default function SessionManagePage() {
       toast.success('Speech-to-text started')
     }
   }, [session, microphoneStream])
+
+  // Auto-start STT when session becomes ACTIVE and microphone is ready
+  useEffect(() => {
+    if (session?.status === SessionStatus.ACTIVE && microphoneStream && !sttActive) {
+      console.log('[Organizer] Auto-starting STT (session became ACTIVE)')
+      handleStartSTT()
+    }
+  }, [session?.status, microphoneStream, sttActive, handleStartSTT])
   const handleStopSTT = useCallback(() => {
     const socket = getSocket()
     if (socket) {

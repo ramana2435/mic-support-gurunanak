@@ -166,10 +166,29 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
       try {
         const { sessionId, audio, timestamp, sequenceNumber } = data;
 
+        // Log audio received
+        logger.debug('[AUDIO] Audio chunk received', {
+          sessionId,
+          socketId: socket.id,
+          audioSize: audio.byteLength,
+          timestamp,
+          sequenceNumber,
+        });
+
         // Check if STT is active for this session
-        if (!sttService.isSessionActive(sessionId)) {
+        const isActive = sttService.isSessionActive(sessionId);
+        if (!isActive) {
+          logger.warn('[AUDIO] STT not active for session, ignoring audio', {
+            sessionId,
+            socketId: socket.id,
+          });
           return;
         }
+
+        logger.debug('[AUDIO] STT active, processing audio', {
+          sessionId,
+          audioSize: audio.byteLength,
+        });
 
         // MODULE 11: Record T0 (audio captured at client)
         if (sequenceNumber !== undefined) {
@@ -181,8 +200,16 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
 
         // Process audio through STT
         await sttService.processAudio(sessionId, audioBuffer, timestamp);
+        
+        logger.debug('[AUDIO] Audio sent to STT service', {
+          sessionId,
+          bufferSize: audioBuffer.length,
+        });
       } catch (error: any) {
-        logger.error('Failed to process audio', { error: error.message });
+        logger.error('[AUDIO] Failed to process audio', { 
+          error: error.message,
+          stack: error.stack,
+        });
       }
     });
 
@@ -431,8 +458,20 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
      */
     socket.on(SocketEvent.START_SESSION, async (sessionId: string) => {
       try {
+        logger.info('[START_SESSION] Starting session', {
+          sessionId,
+          socketId: socket.id,
+        });
+
         // Get session details
         const session = await sessionService.getSessionById(sessionId);
+
+        logger.info('[START_SESSION] Session details retrieved', {
+          sessionId,
+          sourceLanguage: session.sourceLanguage,
+          targetLanguages: session.targetLanguages,
+          status: session.status,
+        });
 
         // Start the integrated pipeline
         await pipelineOrchestrator.startPipeline({
@@ -445,14 +484,22 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
           enableTextChannel: true,
         });
 
+        logger.info('[START_SESSION] Pipeline started', { sessionId });
+
         // Notify all students
         io.to(`session:${sessionId}`).emit(SocketEvent.SESSION_STARTED, {
           session: { ...session, status: SessionStatus.ACTIVE },
         });
 
-        logger.info('Session started with integrated pipeline', { sessionId });
+        logger.info('[START_SESSION] Session started successfully, students notified', {
+          sessionId,
+        });
       } catch (error: any) {
-        logger.error('Error starting session', { error: error.message });
+        logger.error('[START_SESSION] Error starting session', {
+          sessionId,
+          error: error.message,
+          stack: error.stack,
+        });
         socket.emit(SocketEvent.SESSION_ERROR, {
           error: error.message,
         });

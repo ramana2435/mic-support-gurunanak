@@ -128,8 +128,12 @@ export class PipelineOrchestratorService extends EventEmitter {
 
       // Start STT if enabled
       if (config.enableSTT) {
+        logger.info('[Pipeline] Starting STT for pipeline', {
+          sessionId,
+          sourceLanguage,
+        });
         await sttService.startSession(sessionId, sourceLanguage);
-        logger.info('STT started', { sessionId, sourceLanguage });
+        logger.info('[Pipeline] STT started', { sessionId, sourceLanguage });
       }
 
       // Update state to RUNNING

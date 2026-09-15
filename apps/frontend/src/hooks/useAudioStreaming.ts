@@ -16,15 +16,22 @@ export const useAudioStreaming = ({ sessionId, enabled, stream }: UseAudioStream
 
   const startStreaming = useCallback(() => {
     if (!stream || !enabled || isStreamingRef.current) {
+      console.log('[AudioStreaming] Cannot start:', { 
+        hasStream: !!stream, 
+        enabled, 
+        alreadyStreaming: isStreamingRef.current 
+      })
       return
     }
 
     try {
       const socket = getSocket()
       if (!socket) {
-        console.error('Socket not available')
+        console.error('[AudioStreaming] Socket not available')
         return
       }
+
+      console.log('[AudioStreaming] Starting audio streaming', { sessionId })
 
       // Create audio context
       const audioContext = new AudioContext({ sampleRate: 16000 })
@@ -40,6 +47,7 @@ export const useAudioStreaming = ({ sessionId, enabled, stream }: UseAudioStream
       const processor = audioContext.createScriptProcessor(4096, 1, 1)
       processorRef.current = processor
 
+      let chunkCount = 0
       processor.onaudioprocess = (e) => {
         if (!isStreamingRef.current) return
 
@@ -50,6 +58,15 @@ export const useAudioStreaming = ({ sessionId, enabled, stream }: UseAudioStream
         for (let i = 0; i < inputData.length; i++) {
           const s = Math.max(-1, Math.min(1, inputData[i]))
           pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF
+        }
+
+        chunkCount++
+        if (chunkCount <= 3 || chunkCount % 20 === 0) {
+          console.log('[AudioStreaming] Sending audio chunk', {
+            sessionId,
+            chunkNumber: chunkCount,
+            size: pcmData.buffer.byteLength,
+          })
         }
 
         // Send audio data to backend
@@ -65,9 +82,13 @@ export const useAudioStreaming = ({ sessionId, enabled, stream }: UseAudioStream
       processor.connect(audioContext.destination)
 
       isStreamingRef.current = true
-      console.log('Audio streaming started', { sessionId })
+      console.log('[AudioStreaming] Audio streaming started successfully', { 
+        sessionId,
+        sampleRate: audioContext.sampleRate,
+        bufferSize: processor.bufferSize,
+      })
     } catch (error) {
-      console.error('Failed to start audio streaming:', error)
+      console.error('[AudioStreaming] Failed to start audio streaming:', error)
     }
   }, [stream, enabled, sessionId])
 

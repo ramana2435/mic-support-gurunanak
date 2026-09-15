@@ -35,6 +35,12 @@ export const TranscriptDisplay: React.FC<TranscriptDisplayProps> = ({ sessionId 
 
     // Listen for interim results
     const handleInterim = (payload: STTResultPayload) => {
+      console.log('[TranscriptDisplay] STT interim result received:', {
+        sessionId: payload.sessionId,
+        text: payload.text,
+        sequenceNumber: payload.sequenceNumber,
+      })
+
       if (payload.sessionId !== sessionId) return
 
       setInterimText(payload.text)
@@ -47,6 +53,13 @@ export const TranscriptDisplay: React.FC<TranscriptDisplayProps> = ({ sessionId 
 
     // Listen for final results
     const handleFinal = (payload: STTResultPayload) => {
+      console.log('[TranscriptDisplay] STT final result received:', {
+        sessionId: payload.sessionId,
+        text: payload.text,
+        sequenceNumber: payload.sequenceNumber,
+        confidence: payload.confidence,
+      })
+
       if (payload.sessionId !== sessionId) return
 
       const entry: TranscriptEntry = {
@@ -70,6 +83,7 @@ export const TranscriptDisplay: React.FC<TranscriptDisplayProps> = ({ sessionId 
 
     // Listen for errors
     const handleError = (payload: any) => {
+      console.error('[TranscriptDisplay] STT error received:', payload)
       if (payload.sessionId !== sessionId) return
       console.error('STT Error:', payload.error)
     }

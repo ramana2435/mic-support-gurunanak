@@ -36,22 +36,31 @@ export class STTService extends EventEmitter {
    */
   async startSession(sessionId: string, language: Language): Promise<void> {
     try {
-      logger.info('Starting STT session', { sessionId, language });
+      logger.info('[STT] Starting STT session', { sessionId, language });
 
       if (this.activeSessions.has(sessionId)) {
-        logger.warn('STT session already active', { sessionId });
+        logger.warn('[STT] STT session already active', {
+          sessionId,
+          message: 'Ignoring duplicate start request',
+        });
         return;
       }
 
+      logger.info('[STT] Starting provider streaming', { sessionId, language });
       await this.provider.startStreaming(sessionId, language);
       this.activeSessions.add(sessionId);
       this.reconnectAttempts.set(sessionId, 0);
 
-      logger.info('STT session started', { sessionId });
+      logger.info('[STT] STT session started successfully', {
+        sessionId,
+        language,
+        provider: this.provider.getProviderName(),
+      });
     } catch (error: any) {
-      logger.error('Failed to start STT session', { 
+      logger.error('[STT] Failed to start STT session', { 
         sessionId, 
-        error: error.message 
+        error: error.message,
+        stack: error.stack,
       });
       throw error;
     }
@@ -93,16 +102,24 @@ export class STTService extends EventEmitter {
     timestamp: number = Date.now()
   ): Promise<void> {
     if (!this.activeSessions.has(sessionId)) {
-      logger.warn('Attempted to process audio for inactive session', { sessionId });
+      logger.warn('[STT] Attempted to process audio for inactive session', { sessionId });
       return;
     }
+
+    logger.debug('[STT] Processing audio chunk', {
+      sessionId,
+      audioSize: audioData.length,
+      timestamp,
+      isActive: this.activeSessions.has(sessionId),
+    });
 
     try {
       await this.provider.sendAudio(sessionId, audioData, timestamp);
     } catch (error: any) {
-      logger.error('Failed to process audio', { 
+      logger.error('[STT] Failed to process audio', { 
         sessionId, 
-        error: error.message 
+        error: error.message,
+        stack: error.stack,
       });
       this.emit('error', { sessionId, error: error.message });
     }
