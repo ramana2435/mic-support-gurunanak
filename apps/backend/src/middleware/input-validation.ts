@@ -36,13 +36,13 @@ export function sanitizeString(input: string): string {
 
 /**
  * Validate and sanitize session code
- * Must be alphanumeric, 6-10 characters
+ * Must be alphanumeric, exactly 6 characters
  */
 export function validateSessionCode(code: string): string {
   const sanitized = sanitizeString(code).toUpperCase();
   
-  // Session code must be alphanumeric
-  if (!/^[A-Z0-9]{6,10}$/.test(sanitized)) {
+  // Session code must be exactly 6 alphanumeric characters
+  if (!/^[A-Z0-9]{6}$/.test(sanitized)) {
     throw new ValidationError('Invalid session code format');
   }
   
@@ -262,7 +262,7 @@ export function preventPrototypePollution(req: Request, res: Response, next: Nex
  */
 export const commonSchemas = {
   uuid: Joi.string().uuid().required(),
-  sessionCode: Joi.string().regex(/^[A-Z0-9]{6,10}$/).required(),
+  sessionCode: Joi.string().regex(/^[A-Z0-9]{6}$/).required(),
   language: Joi.string().regex(/^[a-z]{2,3}$/).required(),
   email: Joi.string().email().required(),
   password: Joi.string().min(8).max(128).required(),

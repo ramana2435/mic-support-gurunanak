@@ -70,12 +70,20 @@ export function JoinSessionContent() {
   }
 
   const handleCodeChange = (code: string) => {
-    setFormData({ ...formData, sessionCode: code })
-    setErrors({ ...errors, sessionCode: '' })
+    // Normalize: uppercase only, preserve all characters for validation
+    const normalized = code.toUpperCase().slice(0, 7) // Allow 7 to show "too long" error
+    
+    setFormData({ ...formData, sessionCode: normalized })
     setSessionInfo(null)
     
-    if (code.length === 6) {
-      verifySession(code)
+    // Clear previous errors
+    const newErrors = { ...errors }
+    delete newErrors.sessionCode
+    setErrors(newErrors)
+    
+    // Auto-verify when exactly 6 alphanumeric characters
+    if (/^[A-Z0-9]{6}$/.test(normalized)) {
+      verifySession(normalized)
     } else {
       setSessionValid(false)
     }
@@ -83,9 +91,22 @@ export function JoinSessionContent() {
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
+    
+    const code = formData.sessionCode
 
-    if (!/^\d{6}$/.test(formData.sessionCode)) {
-      newErrors.sessionCode = 'Session code must be 6 digits'
+    // Check length first
+    if (code.length === 0) {
+      newErrors.sessionCode = 'Session code is required'
+    } else if (code.length < 6) {
+      newErrors.sessionCode = 'Session code must be exactly 6 characters'
+    } else if (code.length > 6) {
+      newErrors.sessionCode = 'Session code must be exactly 6 characters'
+    } else if (!/^[A-Z0-9]+$/.test(code)) {
+      // Exactly 6 chars but contains invalid characters
+      newErrors.sessionCode = 'Session code can contain only letters and numbers'
+    } else if (!/^[A-Z0-9]{6}$/.test(code)) {
+      // Should not reach here, but safety check
+      newErrors.sessionCode = 'Invalid session code format'
     }
 
     if (!formData.selectedLanguage) {
@@ -100,22 +121,42 @@ export function JoinSessionContent() {
     e.preventDefault()
 
     if (!validateForm()) {
+      toast.error('Please check the form and try again')
+      return
+    }
+
+    if (!sessionValid || !sessionInfo) {
+      toast.error('Please wait for session verification')
       return
     }
 
     setLoading(true)
 
     try {
-      // Store join info in sessionStorage
-      sessionStorage.setItem('studentJoinData', JSON.stringify(formData))
+      // Store join info in sessionStorage for the student session page
+      const joinPayload = {
+        sessionCode: formData.sessionCode,
+        name: formData.name || 'Anonymous',
+        selectedLanguage: formData.selectedLanguage,
+      }
       
-      // Navigate to student session page
+      sessionStorage.setItem('studentJoinData', JSON.stringify(joinPayload))
+      
+      // Log for debugging (safe - no secrets)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Join] Navigating to student session page:', {
+          code: formData.sessionCode,
+          language: formData.selectedLanguage,
+          hasName: !!formData.name,
+        })
+      }
+      
+      // Navigate to student session page (WebSocket join happens there)
       router.push(`/student/session/${formData.sessionCode}`)
     } catch (error) {
       const message = handleApiError(error)
       toast.error(message)
       setErrors({ form: message })
-    } finally {
       setLoading(false)
     }
   }
@@ -156,13 +197,13 @@ export function JoinSessionContent() {
                 label="Session Code"
                 type="text"
                 value={formData.sessionCode}
-                onChange={(e) => handleCodeChange(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="123456"
+                onChange={(e) => handleCodeChange(e.target.value)}
+                placeholder="ABC123"
                 required
                 fullWidth
                 maxLength={6}
                 error={errors.sessionCode}
-                className="text-center text-2xl font-mono tracking-wider"
+                className="text-center text-2xl font-mono tracking-wider uppercase"
               />
               {verifying && (
                 <p className="mt-2 text-sm text-gray-600 flex items-center gap-2">
@@ -251,15 +292,15 @@ export function JoinSessionContent() {
                 <select
                   value={formData.selectedLanguage}
                   onChange={(e) => setFormData({ ...formData, selectedLanguage: e.target.value as Language })}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all text-gray-900 bg-white ${
                     errors.selectedLanguage ? 'border-red-500' : 'border-gray-300'
                   }`}
                 >
-                  <option value="">Select a language</option>
+                  <option value="" className="text-gray-500">Select a language</option>
                   {sessionInfo.targetLanguages.map((lang) => {
                     const langConfig = LANGUAGE_OPTIONS.find(l => l.code === lang)
                     return langConfig ? (
-                      <option key={lang} value={lang}>
+                      <option key={lang} value={lang} className="text-gray-900">
                         {langConfig.name} ({langConfig.nativeName})
                       </option>
                     ) : null

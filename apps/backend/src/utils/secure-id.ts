@@ -91,10 +91,10 @@ export function hashString(input: string): string {
 
 /**
  * Verify session code format
- * Must be alphanumeric, 6-10 characters
+ * Must be alphanumeric, exactly 6 characters
  */
 export function isValidSessionCode(code: string): boolean {
-  return /^[A-Z0-9]{6,10}$/.test(code);
+  return /^[A-Z0-9]{6}$/.test(code);
 }
 
 /**
