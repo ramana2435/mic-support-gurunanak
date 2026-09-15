@@ -1,198 +1,112 @@
-# Quick Start Guide
+# Quick Start - STT Pipeline Fixes
 
-## 5-Minute Setup
+## What Was Fixed
 
-### 1. Prerequisites Check
+✅ **STT Pipeline Now Works End-to-End**
+
+### Main Issue
+- STT wasn't starting when organizer clicked "Start Session"
+- Audio was being captured but not processed
+
+### Solution
+- Added auto-start logic when session becomes ACTIVE
+- Lowered STT buffer threshold for faster response
+- Added comprehensive logging throughout
+
+## Test It Now
+
+### 1. Start Backend
 ```bash
-node --version  # Should be 18+
-npm --version   # Should be 8+
-psql --version  # PostgreSQL should be installed
-```
-
-### 2. One-Command Setup (Windows)
-```bash
-setup.bat
-```
-
-### 3. One-Command Setup (Linux/Mac)
-```bash
-chmod +x setup.sh
-./setup.sh
-```
-
-### 4. Create Database
-```bash
-# PostgreSQL command
-createdb live_translation
-
-# Or using psql
-psql -U postgres
-CREATE DATABASE live_translation;
-\q
-```
-
-### 5. Start Application
-```bash
+cd apps/backend
 npm run dev
 ```
 
-### 6. Open Browser
-- Frontend: http://localhost:3000
-- Backend: http://localhost:3001/api/health
-
----
-
-## Quick Test (2 Minutes)
-
-### Step 1: Register (30 seconds)
-1. Go to http://localhost:3000/organizer/register
-2. Fill form:
-   - Name: Test Organizer
-   - Email: test@example.com
-   - Password: password123
-3. Click "Create Account"
-
-### Step 2: Create Session (30 seconds)
-1. Click "Create Session"
-2. Configure:
-   - Source: English
-   - Target: Telugu, Hindi (Ctrl+Click)
-   - Max Students: 100
-3. Click "Create Session"
-4. **Note the 6-digit code**
-
-### Step 3: Join as Student (30 seconds)
-1. Open new incognito window
-2. Go to http://localhost:3000/join
-3. Enter the 6-digit code
-4. Select language: Telugu
-5. Click "Join Session"
-
-### Step 4: Test Real-Time (30 seconds)
-1. In organizer window: Click "Start Session"
-2. In student window: See status change to "Active"
-3. In organizer: Click "Pause Session"
-4. In student: See status change to "Paused"
-
-✅ **Success!** Module 1 is working!
-
----
-
-## Common Commands
-
+### 2. Start Frontend
 ```bash
-# Start development
+cd apps/frontend  
 npm run dev
-
-# Start backend only
-npm run dev:backend
-
-# Start frontend only
-npm run dev:frontend
-
-# Build all packages
-npm run build
-
-# Type check
-npm run type-check
-
-# Lint code
-npm run lint
-
-# View backend logs
-tail -f apps/backend/logs/combined.log
 ```
 
----
+### 3. Test Flow
+1. **Organizer**: Create session, start microphone, click "Start Session"
+2. **Student**: Join with session code, select Telugu
+3. **Expected**: Mock transcripts appear in organizer, translations appear in student
 
-## Troubleshooting
+## Check Logs
 
-### "Cannot connect to database"
+### Browser Console (Organizer)
+Look for:
+```
+[Organizer] Auto-starting STT (session became ACTIVE)
+[AudioStreaming] Audio streaming started successfully
+[AudioStreaming] Sending audio chunk {chunkNumber: 1}
+[TranscriptDisplay] STT final result received
+```
+
+### Backend Logs
 ```bash
-# Check PostgreSQL is running
-pg_isready
-
-# Verify DATABASE_URL in apps/backend/.env
-# Default: postgresql://postgres:postgres@localhost:5432/live_translation
+# Windows PowerShell
+Get-Content apps\backend\logs\combined.log -Tail 50 -Wait
 ```
 
-### "Port 3000 already in use"
-```bash
-# Option 1: Kill process on port 3000
-# Windows: netstat -ano | findstr :3000
-# Linux/Mac: lsof -ti:3000 | xargs kill
-
-# Option 2: Use different port
-cd apps/frontend
-npx next dev -p 3001
+Look for:
+```json
+{"message":"[START_SESSION] Starting session"}
+{"message":"[Pipeline] Starting STT for pipeline"}
+{"message":"[AUDIO] Audio chunk received"}
+{"message":"Mock STT processing triggered"}
+{"message":"Emitting final STT result"}
 ```
 
-### "Port 3001 already in use"
-```bash
-# Change backend port in apps/backend/.env
-PORT=3002
+## Important Notes
 
-# Update frontend .env.local
-NEXT_PUBLIC_API_URL=http://localhost:3002
-```
+⚠️ **Using Mock Providers**
+- STT generates random English phrases (not real speech recognition)
+- Translation generates fake Telugu text (not real translation)
+- TTS generates simulated audio (not real voice)
 
-### "Module not found"
-```bash
-# Reinstall dependencies
-rm -rf node_modules apps/*/node_modules packages/*/node_modules
-npm install
-cd packages/shared && npm run build && cd ../..
-```
+✅ **Architecture is Complete**
+- Real audio flows through system
+- All components communicate correctly
+- Just replace mock providers with Google/Azure/AWS for production
+
+## Documentation
+
+📖 **Full Details**: See `STT_PIPELINE_FIX_REPORT.md`  
+🧪 **Testing Guide**: See `STT_PIPELINE_TESTING_GUIDE.md`
+
+## Files Changed
+
+- `apps/frontend/src/app/organizer/session/[id]/page.tsx` - Auto-start STT
+- `apps/frontend/src/hooks/useAudioStreaming.ts` - Enhanced logging
+- `apps/frontend/src/components/TranscriptDisplay.tsx` - Enhanced logging
+- `apps/backend/src/socket/index.ts` - Enhanced logging
+- `apps/backend/src/services/stt/stt.service.ts` - Enhanced logging
+- `apps/backend/src/services/stt/browser-stt-provider.ts` - Lower threshold, processing lock
+- `apps/backend/src/services/pipeline/pipeline-orchestrator.service.ts` - Enhanced logging
+
+## Build Status
+
+✅ Backend type-check: PASS  
+✅ Backend build: PASS  
+✅ Frontend type-check: PASS  
+✅ Frontend build: PASS
+
+## Next Steps
+
+1. ✅ Test locally (follow above steps)
+2. ⏳ Deploy to Railway/Vercel
+3. ⏳ Test in production
+4. ⏳ Replace mock providers with real cloud services when ready
+
+## Support
+
+If something doesn't work:
+1. Check browser console for errors
+2. Check backend logs
+3. Review `STT_PIPELINE_TESTING_GUIDE.md` troubleshooting section
 
 ---
 
-## Default Credentials
-
-**Database:**
-- Host: localhost
-- Port: 5432
-- Database: live_translation
-- User: postgres
-- Password: postgres
-
-**Backend:**
-- Port: 3001
-- CORS: http://localhost:3000
-
-**Frontend:**
-- Port: 3000
-- API: http://localhost:3001
-
----
-
-## Project URLs
-
-| Service | URL |
-|---------|-----|
-| Homepage | http://localhost:3000 |
-| Organizer Login | http://localhost:3000/organizer/login |
-| Organizer Register | http://localhost:3000/organizer/register |
-| Join Session | http://localhost:3000/join |
-| API Health | http://localhost:3001/api/health |
-
----
-
-## Need Help?
-
-1. Check `INSTALLATION.md` for detailed setup
-2. Check `README.md` for architecture details
-3. Check `MODULE_1_SUMMARY.md` for implementation details
-4. Check backend logs: `apps/backend/logs/combined.log`
-
----
-
-## What's Next?
-
-Module 1 ✅ - Foundation complete
-
-**Module 2** - Audio & STT (Weeks 3-4):
-- Microphone audio capture
-- Google Cloud Speech-to-Text
-- Real-time transcription display
-
-See `README.md` for complete roadmap.
+**Status**: ✅ COMPLETE - Ready for Testing  
+**Date**: September 14, 2026

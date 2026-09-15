@@ -14,6 +14,7 @@ import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { TranslationDisplay, TranslationSegment } from '@/components/TranslationDisplay'
 import { useAudioPlayer, BufferStats } from '@/hooks/useAudioPlayer'
+import { useBrowserTTS } from '@/hooks/useBrowserTTS'
 import { useNetworkQuality } from '@/hooks/useNetworkQuality'
 import { 
   NetworkQualityIndicator, 
@@ -48,6 +49,18 @@ export default function StudentSessionPage() {
   // MODULE 8: TTS Audio
   const { audioStatus: ttsAudioStatus, isPlaying: isTTSPlaying, bufferStats, handleAudioChunk, handleError: handleTTSError, reset: resetAudio } = useAudioPlayer()
   const [ttsLatency, setTtsLatency] = useState<number | null>(null)
+  
+  // Browser-based TTS for student (Web Speech API)
+  const { 
+    isSupported: ttsSupported, 
+    isEnabled: ttsEnabled, 
+    isSpeaking: browserSpeaking,
+    error: ttsError,
+    selectedVoice,
+    enableAudio: enableBrowserTTS,
+    disableAudio: disableBrowserTTS,
+    speak: speakText,
+  } = useBrowserTTS(joinData?.selectedLanguage || 'en')
   
   // MODULE 9: Network Quality Monitoring
   const socket = getSocket()
@@ -269,6 +282,11 @@ export default function StudentSessionPage() {
       
       // Clear interim segment
       setInterimSegment(null)
+
+      // Browser TTS: Speak translated text if enabled
+      if (ttsEnabled && ttsSupported) {
+        speakText(translatedText, sequenceNumber)
+      }
 
       // Send acknowledgment
       if (studentId) {
@@ -563,6 +581,28 @@ export default function StudentSessionPage() {
               Live Translation
             </h3>
             <div className="flex items-center gap-2">
+              {/* Browser TTS Control */}
+              {ttsSupported && !ttsEnabled && session.status === SessionStatus.ACTIVE && (
+                <Button onClick={enableBrowserTTS} size="sm" variant="primary">
+                  🔊 Enable Audio
+                </Button>
+              )}
+              {ttsEnabled && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-green-600 flex items-center gap-1">
+                    🔊 Audio On {browserSpeaking && '(Speaking)'}
+                  </span>
+                  <button
+                    onClick={disableBrowserTTS}
+                    className="text-xs text-gray-600 hover:text-gray-900 underline"
+                  >
+                    Disable
+                  </button>
+                </div>
+              )}
+              {ttsError && (
+                <span className="text-xs text-red-600">Audio Error</span>
+              )}
               {session.status === SessionStatus.ACTIVE && connected && (
                 <span className="text-xs sm:text-sm text-green-600 flex items-center gap-1 animate-pulse">
                   <span className="w-2 h-2 bg-green-600 rounded-full"></span>

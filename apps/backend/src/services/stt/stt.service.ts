@@ -2,6 +2,8 @@ import { EventEmitter } from 'events';
 import { Language, STTResult, STTLatencyMetrics } from '@live-translation/shared';
 import { ISTTProvider, STTEvent } from './stt-provider.interface';
 import { BrowserSTTProvider } from './browser-stt-provider';
+import { GroqSTTProvider } from './groq-stt-provider';
+import { groqApiKey } from '../../config';
 import logger from '../../utils/logger';
 
 /**
@@ -20,8 +22,16 @@ export class STTService extends EventEmitter {
   constructor(provider?: ISTTProvider) {
     super();
     
-    // Use provided provider or default to BrowserSTTProvider
-    this.provider = provider || new BrowserSTTProvider();
+    // Use Groq provider if API key is available, otherwise fallback to mock
+    if (provider) {
+      this.provider = provider;
+    } else if (groqApiKey) {
+      this.provider = new GroqSTTProvider(groqApiKey);
+      logger.info('[STT] Using Groq STT Provider (REAL speech recognition)');
+    } else {
+      this.provider = new BrowserSTTProvider();
+      logger.warn('[STT] GROQ_API_KEY not set, using mock STT provider');
+    }
     
     // Set up provider event listeners
     this.setupProviderListeners();

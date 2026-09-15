@@ -29,5 +29,7 @@ export const config: AppConfig = {
   sessionExpiryHours: getEnvVarNumber('SESSION_EXPIRY_HOURS', 24),
 };
 
+export const groqApiKey = process.env.GROQ_API_KEY || '';
+
 export const isProduction = config.nodeEnv === 'production';
 export const isDevelopment = config.nodeEnv === 'development';

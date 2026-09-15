@@ -33,6 +33,8 @@ export const TranscriptDisplay: React.FC<TranscriptDisplayProps> = ({ sessionId 
     const socket = getSocket()
     if (!socket) return
 
+    console.log('[TranscriptDisplay] Setting up STT listeners', { sessionId })
+
     // Listen for interim results
     const handleInterim = (payload: STTResultPayload) => {
       console.log('[TranscriptDisplay] STT interim result received:', {
@@ -61,6 +63,15 @@ export const TranscriptDisplay: React.FC<TranscriptDisplayProps> = ({ sessionId 
       })
 
       if (payload.sessionId !== sessionId) return
+
+      // Check for duplicate sequence numbers to prevent duplicate display
+      const isDuplicate = transcripts.some(t => t.sequenceNumber === payload.sequenceNumber)
+      if (isDuplicate) {
+        console.warn('[TranscriptDisplay] Duplicate sequence number, ignoring', {
+          sequenceNumber: payload.sequenceNumber,
+        })
+        return
+      }
 
       const entry: TranscriptEntry = {
         id: `${payload.sequenceNumber}-${Date.now()}`,
@@ -92,12 +103,15 @@ export const TranscriptDisplay: React.FC<TranscriptDisplayProps> = ({ sessionId 
     socket.on(SocketEvent.STT_FINAL, handleFinal)
     socket.on(SocketEvent.STT_ERROR, handleError)
 
+    console.log('[TranscriptDisplay] STT listeners registered')
+
     return () => {
+      console.log('[TranscriptDisplay] Cleaning up STT listeners', { sessionId })
       socket.off(SocketEvent.STT_INTERIM, handleInterim)
       socket.off(SocketEvent.STT_FINAL, handleFinal)
       socket.off(SocketEvent.STT_ERROR, handleError)
     }
-  }, [sessionId])
+  }, [sessionId, transcripts]) // Added transcripts dependency for duplicate checking
 
   // Auto-scroll to bottom
   useEffect(() => {

@@ -2,6 +2,8 @@ import { EventEmitter } from 'events';
 import { Language } from '@live-translation/shared';
 import { ITranslationProvider, TranslationResult } from './translation-provider.interface';
 import { MockTranslationProvider } from './mock-translation-provider';
+import { GroqTranslationProvider } from './groq-translation-provider';
+import { groqApiKey } from '../../config';
 import logger from '../../utils/logger';
 
 /**
@@ -20,7 +22,18 @@ export class TranslationService extends EventEmitter {
 
   constructor(provider?: ITranslationProvider) {
     super();
-    this.provider = provider || new MockTranslationProvider();
+    
+    // Use Groq provider if API key is available, otherwise fallback to mock
+    if (provider) {
+      this.provider = provider;
+    } else if (groqApiKey) {
+      this.provider = new GroqTranslationProvider(groqApiKey);
+      logger.info('[Translation] Using Groq Translation Provider (REAL translation)');
+    } else {
+      this.provider = new MockTranslationProvider();
+      logger.warn('[Translation] GROQ_API_KEY not set, using mock translation provider');
+    }
+    
     logger.info('Translation Service initialized', {
       provider: this.provider.getProviderName(),
     });
