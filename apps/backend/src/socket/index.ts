@@ -195,9 +195,21 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
         try {
           const { sessionCode, name, selectedLanguage } = payload;
 
+          logger.info('[SOCKET] JOIN_SESSION attempt', {
+            socketId: socket.id,
+            sessionCode,
+            name: name || 'Anonymous',
+            language: selectedLanguage,
+          });
+
           // MODULE 12: Check rate limit
           const ipAddress = socket.handshake.address;
           if (!connectionManager.checkRateLimit(ipAddress)) {
+            logger.warn('[SOCKET] Rate limit exceeded', {
+              socketId: socket.id,
+              ipAddress,
+              sessionCode,
+            });
             callback({
               success: false,
               error: 'Too many join requests. Please wait and try again.',
@@ -208,9 +220,20 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
           // Get session
           const session = await sessionService.getSessionByCode(sessionCode);
 
+          logger.info('[SOCKET] Session found', {
+            socketId: socket.id,
+            sessionId: session.id,
+            sessionCode,
+            sessionStatus: session.status,
+          });
+
           // Check if session is expired
           if (session.expiresAt && new Date() > new Date(session.expiresAt)) {
             await sessionService.updateSessionStatus(session.id, SessionStatus.EXPIRED);
+            logger.warn('[SOCKET] Session expired', {
+              socketId: socket.id,
+              sessionId: session.id,
+            });
             callback({
               success: false,
               error: 'Session has expired',
@@ -220,6 +243,11 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
 
           // Check if session is joinable (CREATED or ACTIVE only)
           if (session.status !== SessionStatus.CREATED && session.status !== SessionStatus.ACTIVE) {
+            logger.warn('[SOCKET] Session not joinable', {
+              socketId: socket.id,
+              sessionId: session.id,
+              status: session.status,
+            });
             callback({
               success: false,
               error: `Session is ${session.status}. Cannot join.`,
@@ -227,8 +255,25 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
             return;
           }
 
+          // MODULE 12: Ensure session is registered with resource monitor
+          const sessionResources = resourceMonitor.getSessionResources(session.id);
+          if (!sessionResources) {
+            logger.warn('[SOCKET] Session not registered with resource monitor, registering now', {
+              sessionId: session.id,
+            });
+            resourceMonitor.registerSession(session.id);
+          }
+
           // MODULE 12: Check resource availability with detailed error messages
           const resourceCheck = resourceMonitor.canAcceptConnection(session.id);
+          logger.info('[SOCKET] Resource check', {
+            socketId: socket.id,
+            sessionId: session.id,
+            canAccept: resourceCheck,
+            currentConnections: resourceMonitor.getSessionResources(session.id)?.connections || 0,
+            totalConnections: resourceMonitor.getStats().connections.total,
+          });
+
           if (!resourceCheck) {
             const currentSnapshot = resourceMonitor.getCurrentSnapshot();
             const limits = resourceMonitor.getLimits();
@@ -252,7 +297,7 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
               success: false,
               error: errorMessage,
             });
-            logger.warn('Connection rejected due to resource limits', {
+            logger.warn('[SOCKET] Connection rejected due to resource limits', {
               sessionId: session.id,
               socketId: socket.id,
               snapshot: currentSnapshot ? {
@@ -298,6 +343,14 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
           // MODULE 12: Register with connection manager
           connectionManager.registerConnection(socket, session.id, studentId, selectedLanguage);
           resourceMonitor.addConnection(session.id);
+
+          logger.info('[SOCKET] Student connection registered with resource monitor', {
+            socketId: socket.id,
+            sessionId: session.id,
+            studentId,
+            sessionConnections: resourceMonitor.getSessionResources(session.id)?.connections || 0,
+            totalConnections: resourceMonitor.getStats().connections.total,
+          });
 
           // Join session room
           socket.join(`session:${session.id}`);
@@ -349,15 +402,22 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
           const uniqueLanguages = new Set(students.map(s => s.selectedLanguage));
           translationService.registerSessionLanguages(session.id, Array.from(uniqueLanguages));
 
-          logger.info('Student joined session', {
+          logger.info('[SOCKET] Student joined session successfully', {
             studentId,
             sessionId: session.id,
+            sessionCode: session.code,
             socketId: socket.id,
             connectedCount: updatedCount,
             sessionLanguages: Array.from(uniqueLanguages),
+            name: student.name,
+            selectedLanguage: student.selectedLanguage,
           });
         } catch (error: any) {
-          logger.error('Error joining session', { error: error.message });
+          logger.error('[SOCKET] Error joining session', {
+            error: error.message,
+            stack: error.stack,
+            socketId: socket.id,
+          });
           callback({
             success: false,
             error: error.message || 'Failed to join session',
@@ -428,13 +488,28 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
      * Client disconnects (MODULE 12: With connection manager cleanup)
      */
     socket.on(SocketEvent.DISCONNECT, async () => {
+      logger.info('[SOCKET] Client disconnecting', { socketId: socket.id });
+
       try {
         const student = connectedStudents.get(socket.id);
 
         if (student) {
+          logger.info('[SOCKET] Student disconnect detected', {
+            socketId: socket.id,
+            studentId: student.id,
+            sessionId: student.sessionId,
+          });
+
           // MODULE 12: Unregister from connection manager
           connectionManager.unregisterConnection(socket.id);
           resourceMonitor.removeConnection(student.sessionId);
+
+          logger.info('[SOCKET] Student removed from resource monitor', {
+            socketId: socket.id,
+            sessionId: student.sessionId,
+            sessionConnections: resourceMonitor.getSessionResources(student.sessionId)?.connections || 0,
+            totalConnections: resourceMonitor.getStats().connections.total,
+          });
 
           // Update student record
           await query(

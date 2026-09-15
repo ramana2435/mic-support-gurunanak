@@ -74,6 +74,11 @@ export class SessionService {
 
     const session = this.mapRowToSession(result.rows[0]);
 
+    // Register session with resource monitor (MODULE 12)
+    const { resourceMonitor } = require('../services/scalability/resource-monitor.service');
+    resourceMonitor.registerSession(session.id);
+    logger.info('Session registered with resource monitor', { sessionId: session.id });
+
     // Generate QR code
     const joinUrl = `${config.corsOrigin}/join?code=${code}`;
     const qrCodeUrl = await QRCode.toDataURL(joinUrl);
@@ -192,7 +197,10 @@ export class SessionService {
       throw new NotFoundError('Session not found');
     }
 
-    logger.info('Session deleted', { sessionId, organizerId });
+    // Unregister session from resource monitor
+    const { resourceMonitor } = require('../services/scalability/resource-monitor.service');
+    resourceMonitor.unregisterSession(sessionId);
+    logger.info('Session deleted and unregistered from resource monitor', { sessionId, organizerId });
   }
 
   /**

@@ -32,6 +32,7 @@ export default function StudentSessionPage() {
   const [loading, setLoading] = useState(true)
   const [connected, setConnected] = useState(false)
   const [reconnecting, setReconnecting] = useState(false)
+  const [connectionError, setConnectionError] = useState<string | null>(null)
   const [studentId, setStudentId] = useState<string | null>(null)
   const [joinData, setJoinData] = useState<any>(null)
   const [audioStatus, setAudioStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
@@ -104,7 +105,13 @@ export default function StudentSessionPage() {
     socket.on(SocketEvent.CONNECT, () => {
       setConnected(true)
       setReconnecting(false)
+      setConnectionError(null)
       setAudioStatus('connecting')
+      
+      // Log successful connection
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Socket] Connected successfully:', socket?.id)
+      }
       
       // On reconnect, request missed messages
       if (reconnectAttemptRef.current > 0 && studentId && joinData) {
@@ -119,12 +126,19 @@ export default function StudentSessionPage() {
       setConnected(false)
       setReconnecting(true)
       setAudioStatus('disconnected')
-      toast.error('Disconnected from session. Reconnecting...')
+      
+      // Log disconnect
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Socket] Disconnected from server')
+      }
+      
+      // Don't show repeated toasts - banner will show reconnecting state
     })
 
     socket.on('reconnect', () => {
       setReconnecting(false)
-      toast.success('Reconnected!')
+      setConnectionError(null)
+      toast.success('Reconnected!', { duration: 2000 })
     })
 
     socket.on(SocketEvent.SESSION_STARTED, ({ session: updatedSession }) => {
@@ -313,6 +327,15 @@ export default function StudentSessionPage() {
   const joinSession = (socket: any) => {
     if (!joinData) return
 
+    // Log join attempt
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Join] Attempting to join session:', {
+        code,
+        language: joinData.selectedLanguage,
+        hasName: !!joinData.name,
+      })
+    }
+
     const payload: JoinSessionPayload = {
       sessionCode: code,
       name: joinData.name,
@@ -322,10 +345,33 @@ export default function StudentSessionPage() {
     socket.emit(SocketEvent.JOIN_SESSION, payload, (response: any) => {
       if (response.success) {
         setStudentId(response.data.studentId)
-        toast.success('Joined session successfully!')
+        setConnectionError(null)
+        toast.success('Joined session successfully!', { duration: 3000 })
+        
+        // Log successful join
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Join] Successfully joined session:', response.data.studentId)
+        }
       } else {
-        toast.error(response.error || 'Failed to join session')
-        router.push('/join')
+        // Handle join failure
+        const errorMsg = response.error || 'Failed to join session'
+        setConnectionError(errorMsg)
+        
+        // Log error
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Join] Failed to join session:', errorMsg)
+        }
+        
+        // Show error toast (once, not repeatedly)
+        toast.error(errorMsg, { duration: 5000 })
+        
+        // If it's a capacity error, don't redirect immediately
+        if (!errorMsg.includes('capacity') && !errorMsg.includes('full')) {
+          // For other errors, redirect back to join page after delay
+          setTimeout(() => {
+            router.push('/join')
+          }, 3000)
+        }
       }
     })
   }
@@ -419,6 +465,27 @@ export default function StudentSessionPage() {
           </div>
         </div>
       </div>
+
+      {/* Connection Error Banner */}
+      {connectionError && (
+        <div className="bg-red-50 border-b border-red-200">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-red-800">{connectionError}</p>
+                {connectionError.includes('capacity') && (
+                  <p className="text-xs text-red-700 mt-1">
+                    Please wait a moment and try refreshing the page.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="container mx-auto px-4 py-4 sm:py-6 max-w-4xl">
