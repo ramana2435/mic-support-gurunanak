@@ -147,17 +147,18 @@ export class SessionService {
   ): Promise<Session> {
     const now = new Date();
     let query_text = 'UPDATE sessions SET status = $1';
-    const params: any[] = [status, sessionId];
+    const params: any[] = [status];
 
     if (status === SessionStatus.ACTIVE) {
-      query_text += ', started_at = $3';
-      params.splice(2, 0, now);
+      query_text += ', started_at = $2';
+      params.push(now);
     } else if (status === SessionStatus.STOPPED) {
-      query_text += ', stopped_at = $3';
-      params.splice(2, 0, now);
+      query_text += ', stopped_at = $2';
+      params.push(now);
     }
 
-    query_text += ` WHERE id = $${params.length} RETURNING *`;
+    query_text += ` WHERE id = $${params.length + 1} RETURNING *`;
+    params.push(sessionId);
 
     const result = await query(query_text, params);
 
@@ -167,7 +168,7 @@ export class SessionService {
 
     const session = this.mapRowToSession(result.rows[0]);
 
-    logger.info('Session status updated', { sessionId, status });
+    logger.info('Session status updated', { sessionId, status, startedAt: status === SessionStatus.ACTIVE ? now : undefined });
 
     return session;
   }
