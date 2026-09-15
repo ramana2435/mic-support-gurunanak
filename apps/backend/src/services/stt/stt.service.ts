@@ -22,22 +22,32 @@ export class STTService extends EventEmitter {
   constructor(provider?: ISTTProvider) {
     super();
     
-    // Use Groq provider if API key is available, otherwise fallback to mock
+    // Use Groq provider if API key is available, otherwise handle based on environment
     if (provider) {
       this.provider = provider;
     } else if (groqApiKey) {
       this.provider = new GroqSTTProvider(groqApiKey);
       logger.info('[STT] Using Groq STT Provider (REAL speech recognition)');
     } else {
+      const errorMsg = 'GROQ_API_KEY not set - Speech-to-Text service unavailable';
+      logger.error('[STT] ' + errorMsg);
+      
+      // In production, fail immediately - do NOT use mock provider
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(errorMsg + '. Set GROQ_API_KEY environment variable in Railway dashboard.');
+      }
+      
+      // In development, allow mock as fallback for testing UI
       this.provider = new BrowserSTTProvider();
-      logger.warn('[STT] GROQ_API_KEY not set, using mock STT provider');
+      logger.warn('[STT] Using mock STT provider (DEVELOPMENT ONLY - DO NOT USE IN PRODUCTION)');
     }
     
     // Set up provider event listeners
     this.setupProviderListeners();
     
     logger.info('STT Service initialized', { 
-      provider: this.provider.getProviderName() 
+      provider: this.provider.getProviderName(),
+      environment: process.env.NODE_ENV || 'development'
     });
   }
 

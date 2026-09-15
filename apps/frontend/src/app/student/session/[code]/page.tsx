@@ -428,22 +428,27 @@ export default function StudentSessionPage() {
   }
 
   const getAudioStatusDisplay = () => {
-    // MODULE 8: Update audio status based on TTS
-    if (ttsAudioStatus === 'playing' && isTTSPlaying) {
-      return { color: 'text-green-600', icon: '🔊', text: 'Audio Playing' }
-    } else if (ttsAudioStatus === 'interrupted') {
-      return { color: 'text-yellow-600', icon: '⚠️', text: 'Audio Interrupted' }
-    } else if (ttsAudioStatus === 'error') {
+    // Check browser TTS state (actually used for student audio)
+    if (!ttsSupported) {
+      return { color: 'text-gray-600', icon: '🔇', text: 'Audio Unavailable' }
+    }
+    
+    if (!ttsEnabled) {
+      if (session?.status === SessionStatus.ACTIVE) {
+        return { color: 'text-yellow-600', icon: '🔊', text: 'Audio Disabled' }
+      }
+      return { color: 'text-gray-600', icon: '🔊', text: 'Audio Ready' }
+    }
+    
+    if (ttsError) {
       return { color: 'text-red-600', icon: '❌', text: 'Audio Error' }
     }
     
-    // Fallback to connection-based status
-    const statusConfig = {
-      connecting: { color: 'text-yellow-600', icon: '🔄', text: 'Audio Connecting...' },
-      connected: { color: 'text-green-600', icon: '🔊', text: 'Audio Ready' },
-      disconnected: { color: 'text-red-600', icon: '🔇', text: 'Audio Disconnected' },
+    if (browserSpeaking) {
+      return { color: 'text-green-600', icon: '🔊', text: 'Speaking' }
     }
-    return statusConfig[audioStatus]
+    
+    return { color: 'text-green-600', icon: '🔊', text: 'Audio Enabled' }
   }
 
   const getLanguageName = (code: Language): string => {

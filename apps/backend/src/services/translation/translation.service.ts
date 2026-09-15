@@ -23,19 +23,29 @@ export class TranslationService extends EventEmitter {
   constructor(provider?: ITranslationProvider) {
     super();
     
-    // Use Groq provider if API key is available, otherwise fallback to mock
+    // Use Groq provider if API key is available, otherwise handle based on environment
     if (provider) {
       this.provider = provider;
     } else if (groqApiKey) {
       this.provider = new GroqTranslationProvider(groqApiKey);
       logger.info('[Translation] Using Groq Translation Provider (REAL translation)');
     } else {
+      const errorMsg = 'GROQ_API_KEY not set - Translation service unavailable';
+      logger.error('[Translation] ' + errorMsg);
+      
+      // In production, fail immediately - do NOT use mock provider
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(errorMsg + '. Set GROQ_API_KEY environment variable in Railway dashboard.');
+      }
+      
+      // In development, allow mock as fallback for testing UI
       this.provider = new MockTranslationProvider();
-      logger.warn('[Translation] GROQ_API_KEY not set, using mock translation provider');
+      logger.warn('[Translation] Using mock translation provider (DEVELOPMENT ONLY - DO NOT USE IN PRODUCTION)');
     }
     
     logger.info('Translation Service initialized', {
       provider: this.provider.getProviderName(),
+      environment: process.env.NODE_ENV || 'development'
     });
   }
 

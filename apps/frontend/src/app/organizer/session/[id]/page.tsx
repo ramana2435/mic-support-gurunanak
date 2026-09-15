@@ -11,7 +11,6 @@ import { SocketEvent } from '@live-translation/shared'
 import { Button } from '@/components/Button'
 import { Card } from '@/components/Card'
 import { MicrophoneSetup } from '@/components/MicrophoneSetup'
-import { TranscriptDisplay } from '@/components/TranscriptDisplay'
 import { SessionInfoCard } from '@/components/SessionInfoCard'
 import { SystemHealthMonitor, SystemHealth, LatencyMetrics } from '@/components/SystemHealthMonitor'
 import { StatusType } from '@/components/StatusIndicator'
@@ -316,49 +315,12 @@ export default function SessionManagePage() {
           />
         </div>
 
-        {/* Two Column Layout: Microphone Setup & Transcript */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Microphone Setup */}
-          <div>
-            <MicrophoneSetup
-              onStreamReady={handleMicrophoneStreamReady}
-              onStreamStopped={handleMicrophoneStreamStopped}
-            />
-          </div>
-
-          {/* Live Transcript */}
-          <div>
-            {sttActive ? (
-              <TranscriptDisplay sessionId={sessionId} />
-            ) : (
-              <Card className="bg-white dark:bg-gray-900">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  Live Transcript
-                </h3>
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <svg
-                    className="w-16 h-16 text-gray-300 dark:text-gray-600 mb-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                    />
-                  </svg>
-                  <p className="text-gray-600 dark:text-gray-400 mb-2">
-                    No transcript yet
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-500">
-                    Start your microphone and transcription to begin
-                  </p>
-                </div>
-              </Card>
-            )}
-          </div>
+        {/* Microphone Setup */}
+        <div>
+          <MicrophoneSetup
+            onStreamReady={handleMicrophoneStreamReady}
+            onStreamStopped={handleMicrophoneStreamStopped}
+          />
         </div>
       </main>
     </div>
