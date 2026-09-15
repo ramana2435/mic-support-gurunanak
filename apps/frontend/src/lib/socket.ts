@@ -1,13 +1,15 @@
 import { io, Socket } from 'socket.io-client'
 import { SocketEvent } from '@live-translation/shared'
-
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'
+import { config } from './config'
 
 let socket: Socket | null = null
 
 export const initSocket = (): Socket => {
   if (!socket) {
-    socket = io(SOCKET_URL, {
+    // Use config.socketUrl, which will be null if configuration is missing
+    const socketUrl = config.socketUrl || 'http://invalid.config'
+
+    socket = io(socketUrl, {
       autoConnect: false,
       reconnection: true,
       reconnectionDelay: 1000,
@@ -15,15 +17,21 @@ export const initSocket = (): Socket => {
     })
 
     socket.on(SocketEvent.CONNECT, () => {
-      console.log('Socket connected:', socket?.id)
+      // Development-only logging (safe - no secrets)
+      if (config.isDevelopment) {
+        console.log('[Socket] Connected:', socket?.id)
+      }
     })
 
     socket.on(SocketEvent.DISCONNECT, (reason) => {
-      console.log('Socket disconnected:', reason)
+      // Development-only logging (safe - no secrets)
+      if (config.isDevelopment) {
+        console.log('[Socket] Disconnected:', reason)
+      }
     })
 
     socket.on(SocketEvent.ERROR, (error) => {
-      console.error('Socket error:', error)
+      console.error('[Socket] Error:', error)
     })
   }
 

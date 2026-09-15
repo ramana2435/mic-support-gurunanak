@@ -8,31 +8,90 @@ import {
   CreateSessionResponse,
   Session,
 } from '@live-translation/shared'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'
+import { config, CONFIG_ERROR } from './config'
 
 const api = axios.create({
-  baseURL: `${API_URL}/api`,
+  baseURL: config.apiUrl ? `${config.apiUrl}/api` : 'http://invalid.config',
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
 // Add auth token to requests
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((axiosConfig) => {
   const token = localStorage.getItem('authToken')
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+    axiosConfig.headers.Authorization = `Bearer ${token}`
   }
-  return config
+  return axiosConfig
 })
 
-// Handle API errors
+// Handle API errors with user-friendly messages
 export const handleApiError = (error: unknown): string => {
+  // Check for configuration error
+  if (config.hasConfigError) {
+    return CONFIG_ERROR.message
+  }
+
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<ApiResponse>
-    return axiosError.response?.data?.error || axiosError.message || 'An error occurred'
+
+    // No response (network error, timeout, CORS failure, connection refused, etc.)
+    if (!axiosError.response) {
+      // Development logging (safe - no secrets)
+      if (config.isDevelopment) {
+        console.error('[API Error] Network failure:', {
+          message: axiosError.message,
+          code: axiosError.code,
+          url: `${axiosError.config?.baseURL || ''}${axiosError.config?.url || ''}`,
+        })
+      }
+      return 'Unable to connect to the server. Please check your internet connection.'
+    }
+
+    // HTTP error responses
+    const status = axiosError.response.status
+    const serverError = axiosError.response.data?.error
+
+    // Status-specific messages
+    switch (status) {
+      case 400:
+        return serverError || 'Invalid request. Please check your input.'
+
+      case 401:
+        return serverError || 'Invalid email or password.'
+
+      case 403:
+        return serverError || 'Access denied.'
+
+      case 404:
+        return serverError || 'Resource not found.'
+
+      case 409:
+        return serverError || 'Conflict. This resource may already exist.'
+
+      case 422:
+        return serverError || 'Validation error. Please check your input.'
+
+      case 500:
+      case 502:
+      case 503:
+      case 504:
+        // Development logging for server errors (safe - no secrets)
+        if (config.isDevelopment) {
+          console.error('[API Error] Server error:', {
+            status,
+            message: serverError,
+            url: axiosError.config?.url,
+          })
+        }
+        return 'Server error. Please try again later.'
+
+      default:
+        return serverError || `Error: ${status}`
+    }
   }
+
   return 'An unexpected error occurred'
 }
 

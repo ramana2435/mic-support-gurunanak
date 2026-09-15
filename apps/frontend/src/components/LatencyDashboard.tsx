@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card } from './Card'
+import { config } from '@/lib/config'
 
 /**
  * Latency Statistics Component
@@ -45,7 +46,7 @@ export function LatencyDashboard({ sessionId, refreshInterval = 5000 }: LatencyD
   useEffect(() => {
     const fetchLatencyReport = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/monitoring/session/${sessionId}/latency`)
+        const response = await fetch(`${config.apiUrl}/api/monitoring/session/${sessionId}/latency`)
         
         if (!response.ok) {
           if (response.status === 404) {
@@ -322,7 +323,7 @@ export function LatencyBadge({ sessionId, refreshInterval = 10000 }: LatencyBadg
   useEffect(() => {
     const fetchLatency = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/monitoring/session/${sessionId}/latency`)
+        const response = await fetch(`${config.apiUrl}/api/monitoring/session/${sessionId}/latency`)
         if (response.ok) {
           const data = await response.json()
           setAvgLatency(data.totalEndToEnd.average)
