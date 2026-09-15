@@ -175,6 +175,13 @@ export class STTService extends EventEmitter {
 
     // Final results
     this.provider.on(STTEvent.FINAL_RESULT, (data: any) => {
+      console.log('═══════════════════════════════════════════');
+      console.log('✓ STT SERVICE RECEIVED FINAL_RESULT');
+      console.log(`Session: ${data.result?.sessionId}`);
+      console.log(`Text: "${data.result?.text?.substring(0, 100)}"`);
+      console.log(`Re-emitting as: 'final'`);
+      console.log('═══════════════════════════════════════════');
+      
       logger.info('Final STT result', { 
         sessionId: data.result.sessionId,
         text: data.result.text,

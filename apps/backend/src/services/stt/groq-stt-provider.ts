@@ -184,12 +184,20 @@ export class GroqSTTProvider extends EventEmitter implements ISTTProvider {
         },
       });
 
-      logger.info('[GroqSTT] Final STT result emitted', {
+      logger.info('[GroqSTT] ✓ Final STT result emitted', {
         sessionId,
         sequenceNumber,
         textLength: text.length,
+        text: text.substring(0, 100),
         latency: Date.now() - captureTimestamp,
       });
+      
+      console.log('═══════════════════════════════════════════');
+      console.log('✓ GROQ STT RESULT EMITTED');
+      console.log(`Session: ${sessionId}`);
+      console.log(`Text: "${text.substring(0, 100)}"`);
+      console.log(`Event: STTEvent.FINAL_RESULT`);
+      console.log('═══════════════════════════════════════════');
     } catch (error: any) {
       logger.error('[GroqSTT] Transcription failed', {
         sessionId,

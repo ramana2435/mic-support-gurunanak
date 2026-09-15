@@ -302,8 +302,16 @@ export class PipelineOrchestratorService extends EventEmitter {
     const { result, latency } = data;
     const { sessionId, text, language, confidence } = result;
 
+    console.log('═══════════════════════════════════════════');
+    console.log('✓ PIPELINE ORCHESTRATOR PROCESSING STT');
+    console.log(`Session: ${sessionId}`);
+    console.log(`Text: "${text?.substring(0, 100)}"`);
+    console.log(`isFinal: ${isFinal}`);
+    console.log('═══════════════════════════════════════════');
+
     const pipeline = this.activePipelines.get(sessionId);
     if (!pipeline || pipeline.state !== PipelineState.RUNNING) {
+      console.log(`⚠ Pipeline not running for session ${sessionId}, skipping STT result`);
       logger.debug('Pipeline not running, skipping STT result', { sessionId });
       return;
     }
@@ -325,12 +333,16 @@ export class PipelineOrchestratorService extends EventEmitter {
     try {
       // Translate to all target languages (MODULE 11: Parallel processing)
       if (pipeline.config.enableTranslation && text.trim().length > 0) {
+        console.log(`✓ Calling translationService.translateForSession for "${text.substring(0, 50)}"`);
+        
         const translations = await translationService.translateForSession(
           sessionId,
           text,
           language,
           sequenceNumber
         );
+
+        console.log(`✓ Translation completed, received ${translations.size} translations`);
 
         // MODULE 11: Record T2 (Translation result timestamp)
         const t2 = Date.now();
@@ -339,6 +351,8 @@ export class PipelineOrchestratorService extends EventEmitter {
         const broadcastPromises: Promise<void>[] = [];
         
         for (const [targetLanguage, translation] of translations.entries()) {
+          console.log(`  → Broadcasting to language: ${targetLanguage}`);
+          
           // Record T2 per language
           latencyTelemetry.recordTranslationResult(sessionId, sequenceNumber, targetLanguage, t2);
           
@@ -359,8 +373,14 @@ export class PipelineOrchestratorService extends EventEmitter {
 
         // Wait for all broadcasts (but not TTS processing)
         await Promise.all(broadcastPromises);
+        
+        console.log('✓ All translations broadcast complete');
+      } else {
+        console.log(`⚠ Translation skipped: enabled=${pipeline.config.enableTranslation}, textLength=${text?.trim().length}`);
       }
     } catch (error: any) {
+      console.log(`✗ Translation error: ${error.message}`);
+      
       // Handle error with recovery service
       const errorContext = {
         category: ErrorCategory.TRANSLATION,

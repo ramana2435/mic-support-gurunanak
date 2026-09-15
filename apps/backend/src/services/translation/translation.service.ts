@@ -80,12 +80,22 @@ export class TranslationService extends EventEmitter {
     sourceLanguage: Language,
     sequenceNumber: number
   ): Promise<Map<Language, TranslationWithMetrics>> {
+    console.log('═══════════════════════════════════════════');
+    console.log('✓ TRANSLATION SERVICE CALLED');
+    console.log(`Session: ${sessionId}`);
+    console.log(`Text: "${text.substring(0, 100)}"`);
+    console.log(`Source: ${sourceLanguage}`);
+    console.log('═══════════════════════════════════════════');
+    
     const targetLanguages = this.sessionLanguages.get(sessionId);
     
     if (!targetLanguages || targetLanguages.size === 0) {
+      console.log(`✗ No target languages registered for session ${sessionId}`);
       logger.warn('No target languages for session', { sessionId });
       return new Map();
     }
+
+    console.log(`Target languages: ${Array.from(targetLanguages).join(', ')}`);
 
     const translationStartTimestamp = Date.now();
     const results = new Map<Language, TranslationWithMetrics>();
@@ -97,6 +107,8 @@ export class TranslationService extends EventEmitter {
     await Promise.all(
       Array.from(languageGroups.entries()).map(async ([targetLanguage, _]) => {
         try {
+          console.log(`  → Translating to ${targetLanguage}...`);
+          
           const translation = await this.translateWithCache(
             text,
             sourceLanguage,
@@ -119,12 +131,16 @@ export class TranslationService extends EventEmitter {
 
           results.set(targetLanguage, result);
 
+          console.log(`  ✓ ${targetLanguage}: "${translation.translatedText.substring(0, 50)}" (${translationLatency}ms)`);
+
           logger.debug('Translation completed for session', {
             sessionId,
             targetLanguage,
             latency: translationLatency,
           });
         } catch (error: any) {
+          console.log(`  ✗ ${targetLanguage} failed: ${error.message}`);
+          
           logger.error('Translation failed', {
             sessionId,
             targetLanguage,
@@ -138,6 +154,8 @@ export class TranslationService extends EventEmitter {
         }
       })
     );
+
+    console.log(`✓ Returning ${results.size} translation(s)`);
 
     return results;
   }

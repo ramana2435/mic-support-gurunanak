@@ -6,7 +6,8 @@ export const pool = new Pool({
   connectionString: config.databaseUrl,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  // Removed connectionTimeoutMillis to use default (0 = no timeout)
+  // This prevents timeout on slow Windows localhost connections
 });
 
 pool.on('error', (err) => {
