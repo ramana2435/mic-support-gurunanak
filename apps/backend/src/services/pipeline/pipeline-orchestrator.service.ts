@@ -517,18 +517,24 @@ export class PipelineOrchestratorService extends EventEmitter {
     const health = this.getPipelineHealth(sessionId);
     if (!health) return;
 
-    // Check for stalls (no activity for too long)
+    // Check for stalls only if pipeline is actively processing
+    // Don't flag stalls during silence - that's normal user behavior
     const timeSinceActivity = Date.now() - pipeline.lastActivity.getTime();
-    if (timeSinceActivity > this.STALL_DETECTION_TIMEOUT) {
-      logger.warn('Pipeline stall detected', {
+    const hasQueuedWork = health.metrics.textMessagesBuffered > 0;
+    
+    // Only emit stall warning if there's queued work that's not being processed
+    if (hasQueuedWork && timeSinceActivity > this.STALL_DETECTION_TIMEOUT) {
+      logger.warn('Pipeline stall detected with queued work', {
         sessionId,
         timeSinceActivity,
         state: pipeline.state,
+        queuedMessages: health.metrics.textMessagesBuffered,
       });
 
       this.emit('pipeline:stall', {
         sessionId,
         timeSinceActivity,
+        queuedMessages: health.metrics.textMessagesBuffered,
       });
     }
 
