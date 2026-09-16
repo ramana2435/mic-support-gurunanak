@@ -128,12 +128,31 @@ export class PipelineOrchestratorService extends EventEmitter {
 
       // Start STT if enabled
       if (config.enableSTT) {
+        console.log('═══════════════════════════════════════════');
+        console.log('✓ STT_INITIALIZATION_STARTING');
+        console.log(`Session: ${sessionId}`);
+        console.log(`Source Language: ${sourceLanguage}`);
+        console.log('═══════════════════════════════════════════');
+
         logger.info('[Pipeline] Starting STT for pipeline', {
           sessionId,
           sourceLanguage,
         });
+
         await sttService.startSession(sessionId, sourceLanguage);
-        logger.info('[Pipeline] STT started', { sessionId, sourceLanguage });
+
+        console.log('═══════════════════════════════════════════');
+        console.log('✓ STT_SESSION_REGISTERED');
+        console.log(`Session: ${sessionId}`);
+        console.log(`STT State: ${sttService.getSessionState(sessionId)}`);
+        console.log(`STT Active: ${sttService.isSessionActive(sessionId)}`);
+        console.log('═══════════════════════════════════════════');
+
+        logger.info('[Pipeline] STT started', {
+          sessionId,
+          sourceLanguage,
+          sttState: sttService.getSessionState(sessionId),
+        });
       }
 
       // Update state to RUNNING
@@ -146,9 +165,9 @@ export class PipelineOrchestratorService extends EventEmitter {
       this.emit('pipeline:started', { sessionId });
       logger.info('Pipeline started successfully', { sessionId });
     } catch (error: any) {
-      logger.error('Failed to start pipeline', { 
-        sessionId, 
-        error: error.message 
+      logger.error('Failed to start pipeline', {
+        sessionId,
+        error: error.message
       });
 
       const pipeline = this.activePipelines.get(sessionId);
@@ -231,9 +250,9 @@ export class PipelineOrchestratorService extends EventEmitter {
         logger.info('Pipeline removed from active list', { sessionId });
       }, 60000); // Keep for 1 minute for stats
     } catch (error: any) {
-      logger.error('Failed to stop pipeline', { 
-        sessionId, 
-        error: error.message 
+      logger.error('Failed to stop pipeline', {
+        sessionId,
+        error: error.message
       });
 
       const pipeline = this.activePipelines.get(sessionId);
@@ -334,7 +353,7 @@ export class PipelineOrchestratorService extends EventEmitter {
       // Translate to all target languages (MODULE 11: Parallel processing)
       if (pipeline.config.enableTranslation && text.trim().length > 0) {
         console.log(`✓ Calling translationService.translateForSession for "${text.substring(0, 50)}"`);
-        
+
         const translations = await translationService.translateForSession(
           sessionId,
           text,
@@ -349,13 +368,13 @@ export class PipelineOrchestratorService extends EventEmitter {
 
         // Broadcast translations (parallel with TTS)
         const broadcastPromises: Promise<void>[] = [];
-        
+
         for (const [targetLanguage, translation] of translations.entries()) {
           console.log(`  → Broadcasting to language: ${targetLanguage}`);
-          
+
           // Record T2 per language
           latencyTelemetry.recordTranslationResult(sessionId, sequenceNumber, targetLanguage, t2);
-          
+
           // Broadcast immediately (don't wait for TTS)
           const broadcastPromise = this.broadcastTranslation(
             sessionId,
@@ -367,20 +386,20 @@ export class PipelineOrchestratorService extends EventEmitter {
             sequenceNumber,
             latency
           );
-          
+
           broadcastPromises.push(broadcastPromise);
         }
 
         // Wait for all broadcasts (but not TTS processing)
         await Promise.all(broadcastPromises);
-        
+
         console.log('✓ All translations broadcast complete');
       } else {
         console.log(`⚠ Translation skipped: enabled=${pipeline.config.enableTranslation}, textLength=${text?.trim().length}`);
       }
     } catch (error: any) {
       console.log(`✗ Translation error: ${error.message}`);
-      
+
       // Handle error with recovery service
       const errorContext = {
         category: ErrorCategory.TRANSLATION,
@@ -398,9 +417,9 @@ export class PipelineOrchestratorService extends EventEmitter {
       };
 
       const strategy = errorRecoveryService.handleError(errorContext);
-      
+
       pipeline.errors.push(`Processing error: ${error.message}`);
-      
+
       // Emit warning but continue pipeline
       this.emit('pipeline:warning', {
         sessionId,
@@ -551,7 +570,7 @@ export class PipelineOrchestratorService extends EventEmitter {
 
         const strategy = errorRecoveryService.handleError(errorContext);
         pipeline.errors.push(`STT error: ${data.error}`);
-        
+
         logger.error('STT error in pipeline with recovery', {
           ...data,
           strategy,
@@ -583,7 +602,7 @@ export class PipelineOrchestratorService extends EventEmitter {
 
         const strategy = errorRecoveryService.handleError(errorContext);
         pipeline.errors.push(`Translation error: ${data.error}`);
-        
+
         logger.error('Translation error in pipeline with recovery', {
           ...data,
           strategy,
@@ -608,7 +627,7 @@ export class PipelineOrchestratorService extends EventEmitter {
 
         const strategy = errorRecoveryService.handleError(errorContext);
         pipeline.errors.push(`TTS error: ${data.error}`);
-        
+
         logger.warn('TTS error in pipeline (text continues)', {
           ...data,
           strategy,
@@ -635,9 +654,9 @@ export class PipelineOrchestratorService extends EventEmitter {
     });
 
     const sessionIds = Array.from(this.activePipelines.keys());
-    
+
     await Promise.all(
-      sessionIds.map(sessionId => 
+      sessionIds.map(sessionId =>
         this.stopPipeline(sessionId).catch(error => {
           logger.error('Error stopping pipeline during cleanup', {
             sessionId,
@@ -655,10 +674,10 @@ export class PipelineOrchestratorService extends EventEmitter {
     }
 
     this.activePipelines.clear();
-    
+
     // Cleanup error recovery service
     errorRecoveryService.cleanup();
-    
+
     logger.info('Pipeline orchestrator cleanup complete');
   }
 

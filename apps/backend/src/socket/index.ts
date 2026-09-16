@@ -110,7 +110,7 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
     socket.on(SocketEvent.STT_START, async (payload: STTStartPayload) => {
       try {
         const { sessionId, language } = payload;
-        
+
         logger.info('STT start requested', { sessionId, language, socketId: socket.id });
 
         // Verify session exists and is active
@@ -166,6 +166,14 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
       try {
         const { sessionId, audio, timestamp, sequenceNumber } = data;
 
+        console.log('═══════════════════════════════════════════');
+        console.log('✓ AUDIO_STREAM_RECEIVED');
+        console.log(`Session: ${sessionId}`);
+        console.log(`Socket: ${socket.id}`);
+        console.log(`Audio size: ${audio.byteLength} bytes`);
+        console.log(`Sequence: ${sequenceNumber}`);
+        console.log('═══════════════════════════════════════════');
+
         // Log audio received
         logger.debug('[AUDIO] Audio chunk received', {
           sessionId,
@@ -177,17 +185,42 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
 
         // Check if STT is active for this session
         const isActive = sttService.isSessionActive(sessionId);
+        const sttState = sttService.getSessionState(sessionId);
+
+        console.log('═══════════════════════════════════════════');
+        console.log('✓ AUDIO_STT_STATE_CHECK');
+        console.log(`Session: ${sessionId}`);
+        console.log(`STT Active: ${isActive}`);
+        console.log(`STT State: ${sttState || 'NOT_FOUND'}`);
+        console.log('═══════════════════════════════════════════');
+
         if (!isActive) {
+          console.log('═══════════════════════════════════════════');
+          console.log('✗ AUDIO_REJECTED_STT_INACTIVE');
+          console.log(`Session: ${sessionId}`);
+          console.log(`STT State: ${sttState || 'NOT_FOUND'}`);
+          console.log(`Socket: ${socket.id}`);
+          console.log('═══════════════════════════════════════════');
+
           logger.warn('[AUDIO] STT not active for session, ignoring audio', {
             sessionId,
             socketId: socket.id,
+            sttState: sttState || 'NOT_FOUND',
           });
           return;
         }
 
+        console.log('═══════════════════════════════════════════');
+        console.log('✓ AUDIO_ACCEPTED');
+        console.log(`Session: ${sessionId}`);
+        console.log(`STT State: ${sttState}`);
+        console.log(`Processing audio...`);
+        console.log('═══════════════════════════════════════════');
+
         logger.debug('[AUDIO] STT active, processing audio', {
           sessionId,
           audioSize: audio.byteLength,
+          sttState,
         });
 
         // MODULE 11: Record T0 (audio captured at client)
@@ -200,13 +233,13 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
 
         // Process audio through STT
         await sttService.processAudio(sessionId, audioBuffer, timestamp);
-        
+
         logger.debug('[AUDIO] Audio sent to STT service', {
           sessionId,
           bufferSize: audioBuffer.length,
         });
       } catch (error: any) {
-        logger.error('[AUDIO] Failed to process audio', { 
+        logger.error('[AUDIO] Failed to process audio', {
           error: error.message,
           stack: error.stack,
         });
@@ -304,13 +337,13 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
           if (!resourceCheck) {
             const currentSnapshot = resourceMonitor.getCurrentSnapshot();
             const limits = resourceMonitor.getLimits();
-            
+
             let errorMessage = 'Server is at capacity. Please try again later.';
-            
+
             if (currentSnapshot) {
               const memPct = currentSnapshot.memory.percentage;
               const cpuPct = currentSnapshot.cpu.usage;
-              
+
               if (memPct > limits.maxMemoryPercentage) {
                 errorMessage = 'Server memory capacity reached. Please wait and try again.';
               } else if (cpuPct > limits.maxCPUPercentage) {
@@ -319,7 +352,7 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
                 errorMessage = 'Maximum concurrent connections reached. Please try again shortly.';
               }
             }
-            
+
             callback({
               success: false,
               error: errorMessage,
@@ -350,7 +383,7 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
           // Create student record
           const studentId = uuidv4();
           await query(
-            `INSERT INTO students (id, session_id, name, selected_language, socket_id) 
+            `INSERT INTO students (id, session_id, name, selected_language, socket_id)
              VALUES ($1, $2, $3, $4, $5)`,
             [studentId, session.id, name, selectedLanguage, socket.id]
           );
@@ -381,7 +414,7 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
 
           // Join session room
           socket.join(`session:${session.id}`);
-          
+
           // Join language-specific room for translations
           socket.join(`session:${session.id}:lang:${selectedLanguage}`);
 
@@ -458,6 +491,13 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
      */
     socket.on(SocketEvent.START_SESSION, async (sessionId: string) => {
       try {
+        console.log('═══════════════════════════════════════════');
+        console.log('✓ START_SESSION_RECEIVED');
+        console.log(`Session: ${sessionId}`);
+        console.log(`Socket: ${socket.id}`);
+        console.log(`Timestamp: ${new Date().toISOString()}`);
+        console.log('═══════════════════════════════════════════');
+
         logger.info('[START_SESSION] Starting session', {
           sessionId,
           socketId: socket.id,
@@ -473,6 +513,14 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
           status: session.status,
         });
 
+        console.log('═══════════════════════════════════════════');
+        console.log('✓ SESSION_DETAILS_LOADED');
+        console.log(`Session: ${sessionId}`);
+        console.log(`Source Language: ${session.sourceLanguage}`);
+        console.log(`Target Languages: ${session.targetLanguages.join(', ')}`);
+        console.log(`Current Status: ${session.status}`);
+        console.log('═══════════════════════════════════════════');
+
         // Start the integrated pipeline
         await pipelineOrchestrator.startPipeline({
           sessionId,
@@ -484,6 +532,13 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
           enableTextChannel: true,
         });
 
+        console.log('═══════════════════════════════════════════');
+        console.log('✓ PIPELINE_STARTED');
+        console.log(`Session: ${sessionId}`);
+        console.log(`STT: enabled`);
+        console.log(`Translation: enabled`);
+        console.log('═══════════════════════════════════════════');
+
         logger.info('[START_SESSION] Pipeline started', { sessionId });
 
         // Notify all students
@@ -491,10 +546,23 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
           session: { ...session, status: SessionStatus.ACTIVE },
         });
 
+        console.log('═══════════════════════════════════════════');
+        console.log('✓ SESSION_STARTED_EVENT_BROADCAST');
+        console.log(`Session: ${sessionId}`);
+        console.log(`Status: ACTIVE`);
+        console.log(`Room: session:${sessionId}`);
+        console.log('═══════════════════════════════════════════');
+
         logger.info('[START_SESSION] Session started successfully, students notified', {
           sessionId,
         });
       } catch (error: any) {
+        console.log('═══════════════════════════════════════════');
+        console.log('✗ START_SESSION_ERROR');
+        console.log(`Session: ${sessionId}`);
+        console.log(`Error: ${error.message}`);
+        console.log('═══════════════════════════════════════════');
+
         logger.error('[START_SESSION] Error starting session', {
           sessionId,
           error: error.message,
@@ -678,7 +746,7 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
      */
     socket.on(SocketEvent.TEXT_SYNC_ACK, (ack: TextSyncAck) => {
       textChannelService.updateStudentSequence(ack.studentId, ack.sequenceNumber);
-      
+
       logger.debug('Text sync ack received', {
         studentId: ack.studentId,
         sequenceNumber: ack.sequenceNumber,
@@ -701,7 +769,7 @@ function setupPipelineOrchestratorListeners(io: SocketIOServer): void {
       SocketEvent.TRANSLATION_INTERIM,
       payload
     );
-    
+
     logger.debug('Translation interim broadcast', {
       sessionId: payload.sessionId,
       targetLanguage: payload.targetLanguage,
@@ -715,7 +783,7 @@ function setupPipelineOrchestratorListeners(io: SocketIOServer): void {
       SocketEvent.TRANSLATION_FINAL,
       payload
     );
-    
+
     logger.info('Translation final broadcast', {
       sessionId: payload.sessionId,
       targetLanguage: payload.targetLanguage,
@@ -728,7 +796,7 @@ function setupPipelineOrchestratorListeners(io: SocketIOServer): void {
     io.to(`session:${data.sessionId}`).emit(SocketEvent.SESSION_ERROR, {
       error: data.error,
     });
-    
+
     logger.error('Pipeline error broadcast', data);
   });
 
@@ -777,8 +845,8 @@ function setupSTTServiceListeners(io: SocketIOServer): void {
     // Broadcast STT interim to organizer (for monitoring only)
     // Pipeline orchestrator handles the translation flow
     io.to(`session:${result.sessionId}`).emit(SocketEvent.STT_INTERIM, payload);
-    
-    logger.debug('STT interim result broadcast to organizer', { 
+
+    logger.debug('STT interim result broadcast to organizer', {
       sessionId: result.sessionId,
       latency: latency?.totalLatency,
     });
@@ -800,8 +868,8 @@ function setupSTTServiceListeners(io: SocketIOServer): void {
     // Broadcast STT final to organizer (for monitoring only)
     // Pipeline orchestrator handles the translation flow
     io.to(`session:${result.sessionId}`).emit(SocketEvent.STT_FINAL, payload);
-    
-    logger.info('STT final result broadcast to organizer', { 
+
+    logger.info('STT final result broadcast to organizer', {
       sessionId: result.sessionId,
       text: result.text,
       latency: latency?.totalLatency,
@@ -814,7 +882,7 @@ function setupSTTServiceListeners(io: SocketIOServer): void {
       sessionId: data.sessionId,
       error: data.error,
     });
-    
+
     logger.error('STT error broadcast', data);
   });
 
@@ -834,7 +902,7 @@ function setupSTTServiceListeners(io: SocketIOServer): void {
       sessionId: data.sessionId,
       error: 'STT connection failed after multiple attempts',
     });
-    
+
     logger.error('STT reconnect failed', data);
   });
 
