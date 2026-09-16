@@ -16,7 +16,25 @@ export const initSocket = (): Socket => {
       reconnectionAttempts: 5,
     })
 
+    // DIAGNOSTIC: Log all outgoing events
+    const originalEmit = socket.emit.bind(socket);
+    socket.emit = function(event: string, ...args: any[]) {
+      console.log('═══════════════════════════════════════════');
+      console.log('📤 EMITTING EVENT');
+      console.log('Event:', event);
+      console.log('Args:', JSON.stringify(args, null, 2));
+      console.log('Socket ID:', socket?.id);
+      console.log('Connected:', socket?.connected);
+      console.log('═══════════════════════════════════════════');
+      return originalEmit(event, ...args);
+    };
+
     socket.on(SocketEvent.CONNECT, () => {
+      console.log('═══════════════════════════════════════════');
+      console.log('✓ FRONTEND_SOCKET_CONNECTED');
+      console.log('Socket ID:', socket?.id);
+      console.log('Socket URL:', socketUrl);
+      console.log('═══════════════════════════════════════════');
       // Development-only logging (safe - no secrets)
       if (config.isDevelopment) {
         console.log('[Socket] Connected:', socket?.id)
@@ -24,6 +42,10 @@ export const initSocket = (): Socket => {
     })
 
     socket.on(SocketEvent.DISCONNECT, (reason) => {
+      console.log('═══════════════════════════════════════════');
+      console.log('✗ FRONTEND_SOCKET_DISCONNECTED');
+      console.log('Reason:', reason);
+      console.log('═══════════════════════════════════════════');
       // Development-only logging (safe - no secrets)
       if (config.isDevelopment) {
         console.log('[Socket] Disconnected:', reason)

@@ -83,7 +83,22 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
   setupTTSServiceListeners(io);
 
   io.on(SocketEvent.CONNECT, (socket: Socket) => {
+    console.log('═══════════════════════════════════════════');
+    console.log('✓ CLIENT_CONNECTED');
+    console.log('Socket ID:', socket.id);
+    console.log('Registering event handlers...');
+    console.log('═══════════════════════════════════════════');
     logger.info('Client connected', { socketId: socket.id });
+
+    // CATCH-ALL: Log every single event received
+    socket.onAny((eventName, ...args) => {
+      console.log('═══════════════════════════════════════════');
+      console.log('📥 EVENT_RECEIVED');
+      console.log('Event:', eventName);
+      console.log('Socket:', socket.id);
+      console.log('Args:', JSON.stringify(args, null, 2));
+      console.log('═══════════════════════════════════════════');
+    });
 
     /**
      * MODULE 9: Ping-pong for latency measurement
@@ -614,6 +629,26 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
         });
       }
     });
+
+    // ═══════════════════════════════════════════
+    // ALL EVENT HANDLERS REGISTERED SUCCESSFULLY
+    // ═══════════════════════════════════════════
+    console.log('═══════════════════════════════════════════');
+    console.log('✓ ALL_HANDLERS_REGISTERED');
+    console.log('Socket ID:', socket.id);
+    console.log('Handlers:', [
+      'ping',
+      'join:organizer:room', 
+      'STT_START',
+      'STT_STOP',
+      'AUDIO_STREAM',
+      'START_SESSION',
+      'STOP_SESSION',
+      'JOIN_SESSION',
+      'LEAVE_SESSION',
+      'DISCONNECT'
+    ]);
+    console.log('═══════════════════════════════════════════');
 
     /**
      * Client disconnects (MODULE 12: With connection manager cleanup)
