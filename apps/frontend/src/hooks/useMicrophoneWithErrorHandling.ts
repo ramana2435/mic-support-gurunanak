@@ -179,6 +179,7 @@ export function useMicrophoneWithErrorHandling(): UseMicrophoneReturn {
     } finally {
       isStartingRef.current = false;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkBrowserSupport, handleMicrophoneError]);
 
   /**

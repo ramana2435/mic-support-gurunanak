@@ -128,6 +128,7 @@ export function useReconnection(
 
       socket.on('connect', onConnect);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, sessionInfo]);
 
   /**
