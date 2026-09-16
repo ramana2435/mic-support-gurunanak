@@ -108,8 +108,18 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
      * Start STT for a session
      */
     socket.on(SocketEvent.STT_START, async (payload: STTStartPayload) => {
+      console.log('═══════════════════════════════════════════');
+      console.log('✓ STT_START HANDLER TRIGGERED');
+      console.log('Raw payload:', JSON.stringify(payload, null, 2));
+      console.log('Socket ID:', socket.id);
+      console.log('═══════════════════════════════════════════');
       try {
         const { sessionId, language } = payload;
+        console.log('═══════════════════════════════════════════');
+        console.log('✓ STT_START_PAYLOAD_DESTRUCTURED');
+        console.log('Session ID:', sessionId);
+        console.log('Language:', language);
+        console.log('═══════════════════════════════════════════');
 
         logger.info('STT start requested', { sessionId, language, socketId: socket.id });
 
@@ -131,6 +141,12 @@ export const initializeSocket = (server: HTTPServer): SocketIOServer => {
 
         logger.info('STT started successfully', { sessionId });
       } catch (error: any) {
+        console.log('═══════════════════════════════════════════');
+        console.log('✗ STT_START_ERROR_CAUGHT');
+        console.log('Error:', error);
+        console.log('Error message:', error.message);
+        console.log('Error stack:', error.stack);
+        console.log('═══════════════════════════════════════════');
         logger.error('Failed to start STT', { error: error.message });
         socket.emit(SocketEvent.STT_ERROR, {
           sessionId: payload.sessionId,
