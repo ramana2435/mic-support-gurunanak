@@ -50,8 +50,14 @@ PORT=3001
 # Database
 DATABASE_URL=postgresql://...
 
-# Groq API
+# Groq API (STT and Translation)
 GROQ_API_KEY=your_groq_api_key
+
+# Google Cloud TTS
+# IMPORTANT: Add your service account JSON key as a single-line string
+# Get from: Google Cloud Console → IAM → Service Accounts → Keys
+# Convert to single line: cat key.json | jq -c .
+GOOGLE_CLOUD_KEY_JSON={"type":"service_account","project_id":"...","private_key":"..."}
 
 # JWT
 JWT_SECRET=your_jwt_secret
@@ -63,6 +69,12 @@ ALLOWED_ORIGINS=https://your-frontend.vercel.app
 # Session
 SESSION_SECRET=your_session_secret
 ```
+
+**Note on GOOGLE_CLOUD_KEY_JSON:**
+- Must be the ENTIRE JSON key file contents
+- Must be on ONE LINE (no line breaks)
+- Use `jq -c .` to compact JSON: `cat your-key.json | jq -c .`
+- Or manually remove all newlines from the JSON
 
 ---
 

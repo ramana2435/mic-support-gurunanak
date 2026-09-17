@@ -13,6 +13,7 @@
     "test:groq": "ts-node src/tests/groq-independent-test.ts"
   },
   "dependencies": {
+    "@google-cloud/text-to-speech": "^5.4.0",
     "@live-translation/shared": "*",
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",

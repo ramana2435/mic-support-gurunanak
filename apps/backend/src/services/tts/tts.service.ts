@@ -7,6 +7,7 @@ import {
   TTSLatencyMetrics,
 } from './tts-provider.interface';
 import { MockTTSProvider } from './mock-tts-provider';
+import { GoogleTTSProvider } from './google-tts-provider';
 import { latencyTelemetry } from '../telemetry/latency-telemetry.service';
 import logger from '../../utils/logger';
 
@@ -408,5 +409,36 @@ interface TTSStats {
   activeProcessing: number;
 }
 
-// Singleton instance
-export const ttsService = new TTSService();
+/**
+ * Initialize TTS provider based on environment
+ */
+function initializeTTSProvider(): ITTSProvider {
+  // Check if Google Cloud TTS is configured
+  const hasGoogleCredentials = 
+    process.env.GOOGLE_APPLICATION_CREDENTIALS || 
+    process.env.GOOGLE_CLOUD_KEY_JSON;
+
+  if (hasGoogleCredentials) {
+    try {
+      const googleProvider = new GoogleTTSProvider();
+      if (googleProvider.isReady()) {
+        logger.info('Using Google Cloud TTS provider');
+        return googleProvider;
+      }
+    } catch (error: any) {
+      logger.error('Failed to initialize Google TTS, falling back to Mock', {
+        error: error.message,
+      });
+    }
+  } else {
+    logger.warn('Google Cloud TTS credentials not configured, using MockTTSProvider');
+    logger.warn('Set GOOGLE_APPLICATION_CREDENTIALS or GOOGLE_CLOUD_KEY_JSON to enable real TTS');
+  }
+
+  // Fallback to mock provider
+  logger.info('Using MockTTSProvider (no real audio)');
+  return new MockTTSProvider();
+}
+
+// Singleton instance with auto-detected provider
+export const ttsService = new TTSService(initializeTTSProvider());

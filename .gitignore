@@ -62,6 +62,12 @@ Thumbs.db
 credentials/
 *.json.key
 *-key.json
+google-tts-key.json
+google-cloud-*.json
+
+# Test outputs
+test-*.wav
+test-audio.wav
 
 # Additional safety - ensure logs don't get committed
 apps/backend/logs/*.log
